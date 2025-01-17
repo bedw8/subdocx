@@ -1,0 +1,7 @@
+.direnv
+.envrc
+flake.*
+.mypy_cache
+poetry.lock
+test.py
+**/__pycache__/**
