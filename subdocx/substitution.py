@@ -61,7 +61,7 @@ def _substitute_run(run: Run,
 
         # new value
         new_val = str(ffunc(data[value_key]))
-        print(full_key,'--',new_val,full_key in format)
+        # print(full_key,'--',new_val,full_key in format)
 
         text = text.replace(ph,new_val)
 
@@ -125,7 +125,7 @@ def SubFromTable(
 
     input_temp = temp
     if a:=not isinstance(temp,list):
-        print(a)
+        # print(a)
         input_temp = [temp]
     
     for i,row in table:
