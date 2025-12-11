@@ -1,6 +1,5 @@
-
 import docx
-from copy import deepcopy 
+from copy import deepcopy
 from typing import List, Dict, Callable, Any, TypeAlias
 from dataclasses import dataclass
 import pandas as pd
@@ -10,52 +9,48 @@ from .config import SubConfig, formatType
 
 Document = docx.document.Document
 
+
 @dataclass
 class NHandler:
-    '''
-    patter: number of columns with that patter and non-na values
+    """
+    pattern: number of columns with that pattern and non-na values
     columns: number from column value
     function: number from function (lambda data: ...)
-    '''
+    """
+
     pattern: str | None = None
     column: str | None = None
     function: Callable | None = None
-    
-    def getN(self,data):
 
-        notnone = [(k,v) for k,v in self.__dict__.items() if v is not None]
+    def getN(self, data):
+        notnone = [(k, v) for k, v in self.__dict__.items() if v is not None]
         if len(notnone) == 0:
-            raise Exception('no method specified') from None
-        key,val = notnone[0]
+            raise Exception("no method specified") from None
+        key, val = notnone[0]
 
         match key:
-            case 'pattern':
+            case "pattern":
                 assert isinstance(data, pd.Series)
                 return data.filter(regex=val).where(lambda x: x > 0).dropna().size
-            case 'column':
+            case "column":
                 return int(data[val])
-            case 'function':
+            case "function":
                 return val(data)
 
 
 class Template(Document):
-    _loaded_templates: list['Template']  = []
-    _normalized_templates: list['Template']  = []
-    _custom_options = [
-        'format',
-        'vars_exclusion',
-        'nvars_exclusion',
-        'n_from'
-    ]
-    
+    _loaded_templates: list["Template"] = []
+    _normalized_templates: list["Template"] = []
+    _custom_options = ["format", "vars_exclusion", "nvars_exclusion", "n_from"]
+
     def __init__(
-            self, 
-            input,
-            name: str = "",
-            numeric: bool = False,
-            n_from: NHandler | None = None,
-            **kwargs
-        ):
+        self,
+        input,
+        name: str = "",
+        numeric: bool = False,
+        n_from: NHandler | None = None,
+        **kwargs,
+    ):
         if isinstance(input, Document):
             pass
         else:
@@ -90,6 +85,4 @@ class Template(Document):
         normalize_document(to_normalize)
         to_normalize._original = False
         self._normalized_templates.append(to_normalize)
-        #TODO add normalization logs
-
-        
+        # TODO add normalization logs
