@@ -11,8 +11,11 @@ import json
 import tempfile
 import requests
 import os
+import logging
 
 app = FastAPI()
+
+logger = logging.getLogger(__name__)
 
 
 class GenData(BaseModel):
@@ -37,7 +40,7 @@ def parse_data(data: str = Form(...)):
 async def generate_document(
     template: Annotated[UploadFile, File()],
     data: GenData = Depends(parse_data),
-    pdf: bool = False,
+    pdf: Annotated[bool, Form()] = False,
     # data: dict[str, str] = Depends(checker),
     # filename: Annotated[str | None, Form()] = None,
 ):
@@ -56,13 +59,10 @@ async def generate_document(
     buffer.seek(0)
 
     if pdf:
-        # docx = tempfile.NamedTemporaryFile()
-        # new.save(docx.file)
-
         SERVER = os.getenv("UNISERVER_URL")
         PORT = os.getenv("UNISERVER_PORT")
         pdf_r = requests.post(
-            f"http://{SERVER}:{PORT}",
+            f"http://{SERVER}:{PORT}/request",
             files={"file": buffer},
             data={"convert-to": "pdf"},
         )
@@ -73,4 +73,5 @@ async def generate_document(
         content = buffer.read()
         mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
+    logger.info("world")
     return Response(content=content, media_type=mime)
