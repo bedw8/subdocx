@@ -8,6 +8,9 @@ from .. import Template, Substitute
 from pydantic import BaseModel, ValidationError, validator, Field
 from io import BytesIO
 import json
+import tempfile
+import requests
+import os
 
 app = FastAPI()
 
@@ -34,6 +37,7 @@ def parse_data(data: str = Form(...)):
 async def generate_document(
     template: Annotated[UploadFile, File()],
     data: GenData = Depends(parse_data),
+    pdf: bool = False,
     # data: dict[str, str] = Depends(checker),
     # filename: Annotated[str | None, Form()] = None,
 ):
@@ -46,11 +50,27 @@ async def generate_document(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
+    # docx
     buffer = BytesIO()
-
     new.save(buffer)
-
-    mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-
     buffer.seek(0)
-    return Response(content=buffer.read(), media_type=mime)
+
+    if pdf:
+        # docx = tempfile.NamedTemporaryFile()
+        # new.save(docx.file)
+
+        SERVER = os.getenv("UNISERVER_URL")
+        PORT = os.getenv("UNISERVER_PORT")
+        pdf_r = requests.post(
+            f"http://{SERVER}:{PORT}",
+            files={"file": buffer},
+            data={"convert-to": "pdf"},
+        )
+        content = pdf_r.content
+        mime = "application/pdf"
+
+    else:
+        content = buffer.read()
+        mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+    return Response(content=content, media_type=mime)
