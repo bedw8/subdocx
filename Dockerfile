@@ -1,6 +1,6 @@
 
 FROM  ghcr.io/astral-sh/uv:alpine3.22
-RUN apk add git
+RUN apk add git --no-cache
 
 WORKDIR /subdocx
 
@@ -12,5 +12,5 @@ RUN uv pip install -e .
 
 EXPOSE 8000
 
-CMD [ "uv", "run", "fastapi", "run","subdocx.api" ]
+CMD [ "uv", "run", "uvicorn", "run","subdocx.api:app" ]
 
