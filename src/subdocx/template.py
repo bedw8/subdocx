@@ -1,6 +1,6 @@
 import docx
 from copy import deepcopy
-from typing import List, Dict, Callable, Any, TypeAlias
+from typing import Callable
 from dataclasses import dataclass
 import pandas as pd
 

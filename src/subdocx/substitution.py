@@ -1,9 +1,8 @@
-from typing import Callable, Any, TypeAlias
-from .utils import iter_runs, Document, Run
-from .template import Template, NHandler, formatType
+from typing import Callable
+from .utils import iter_runs, Run
+from .template import Template  # , NHandler
 from .io import path_from_data
 from .config import SubConfig, formatType
-import docx
 import pandas as pd
 import re
 from pathlib import Path
@@ -125,7 +124,8 @@ def SubFromTable(
         table = enumerate(table)
 
     input_temp = temp
-    if a := not isinstance(temp, list):
+    if not isinstance(temp, list):
+        # a :=
         # print(a)
         input_temp = [temp]
 
