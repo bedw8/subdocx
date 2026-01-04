@@ -1,16 +1,20 @@
 
 FROM  ghcr.io/astral-sh/uv:alpine3.22
-RUN apk add git --no-cache
+RUN apk add git>=2.49.0 --no-cache
 
-WORKDIR /subdocx
+WORKDIR /app
 
-COPY pyproject.toml .
-RUN uv sync -U --no-cache
+COPY ./pyproject.toml .
+COPY ./uv.lock .
+COPY ./.python-version .
 
-COPY subdocx .
-RUN uv pip install -e .
+RUN uv sync -U --no-cache --all-extras
+
+COPY ./src ./src
+
+RUN uv sync -U --no-cache --all-extras
 
 EXPOSE 8000
 
-CMD [ "uv", "run", "uvicorn", "run","subdocx.api:app" ]
+CMD [ "uv", "run", "subdocx" ]
 
