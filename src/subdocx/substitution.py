@@ -6,6 +6,7 @@ from .config import SubConfig, formatType
 import pandas as pd
 import re
 from pathlib import Path
+from .format import functions
 
 
 def _substitute_run(
@@ -21,6 +22,9 @@ def _substitute_run(
     """
     config = SubConfig()
     config._load_kwargs(**{"format": format, **kwargs})
+
+    if isinstance(data, pd.Series):
+        data = data.iloc[0].to_dict()
 
     def _get(key):
         return config.get(key, kwargs_fallback)
@@ -43,7 +47,10 @@ def _substitute_run(
         # value_key: 'variable'
         # specific_key: 'format1'
         full_key, value_key, specific_key = m.groups()
+        print(full_key)
         if value_key in exclude:
+            continue
+        if value_key not in data:
             continue
         if len(only) > 1 and value_key not in only:
             continue
@@ -51,7 +58,13 @@ def _substitute_run(
         # format
         #
         # not using specific_key at the moment. full_key is enough
-        ffunc: Callable = format[full_key] if full_key in format else lambda x: x
+        ffunc: Callable
+        if full_key in format:
+            ffunc = format[full_key]
+        elif specific_key in functions:
+            ffunc = functions[specific_key]
+        else:
+            ffunc = lambda x: x
 
         # value
         #
