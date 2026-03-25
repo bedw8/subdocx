@@ -1,4 +1,6 @@
 from babel.dates import format_date
+from pandas import to_datetime
+from datetime import datetime
 
 
 # format
@@ -10,14 +12,20 @@ def thd_number_sep(n):
 
 
 def date2words(date):
+    if not isinstance(date, datetime):
+        date = to_datetime(date)
     return format_date(date, "d 'de' MMMM 'de' y", locale="es_CL")
 
 
 def date_MMMMy(x):
+    if not isinstance(x, datetime):
+        x = to_datetime(x)
     return (format_date(x, "MMMM, y", locale="es_CL"),)
 
 
 def date_MMMM(x):
+    if not isinstance(x, datetime):
+        x = to_datetime()
     return (format_date(x, "MMMM", locale="es_CL"),)
 
 

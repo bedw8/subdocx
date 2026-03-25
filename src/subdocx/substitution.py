@@ -24,7 +24,7 @@ def _substitute_run(
     config._load_kwargs(**{"format": format, **kwargs})
 
     if isinstance(data, pd.Series):
-        data = data.iloc[0].to_dict()
+        data = data.to_dict()
 
     def _get(key):
         return config.get(key, kwargs_fallback)
