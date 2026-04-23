@@ -6,8 +6,114 @@ import pandas as pd
 
 from .config import formatType
 from .export import path_from_data, to_pdf, write, zip_dir
-from .substitution import Substitute
 from .template import Template
+
+
+class BatchSubstitution:
+    def __init__(
+        self,
+        temp: Template | list[Template],
+        table: pd.DataFrame,
+        naming_schema: str | Callable,
+        format: formatType = {},
+        parent_directory: Path | None = None,
+        pdf: bool = True,
+        zip: bool = False,
+        substitution_cls=None,
+        **kwargs,
+    ):
+        self.templates = temp if isinstance(temp, list) else [temp]
+        self.table = table
+        self.naming_schema = naming_schema
+        self.format = format
+        self.parent_directory = parent_directory
+        self.pdf = pdf
+        self.zip = zip
+        self.substitution_cls = substitution_cls
+        self.kwargs = kwargs
+
+    def _resolve_substitution_cls(self):
+        if self.substitution_cls is not None:
+            return self.substitution_cls
+
+        from .substitution import Substitution
+
+        return Substitution
+
+    def _resolve_table(self) -> pd.DataFrame:
+        table = self.table
+        if isinstance(table, pd.DataFrame):
+            table.columns = table.columns.str.strip()
+
+        assert isinstance(table, pd.DataFrame)
+        assert table.shape[0] > 0
+        return table
+
+    def _resolve_naming_schema(self, template: Template):
+        match self.naming_schema:
+            case x if isinstance(self.naming_schema, str):
+                return x
+            case x if callable(self.naming_schema):
+                return x(template)
+
+    def render(self):
+        table = self._resolve_table()
+        tableN = table.shape[0]
+        temp_directory = TemporaryDirectory() if self.parent_directory is None else None
+        output_directory = Path(temp_directory.name) if temp_directory else self.parent_directory
+
+        try:
+            for i, row in table.iterrows():
+                rowN = len(self.templates)
+                row_i = 0
+                for temp in self.templates:
+                    if temp.numeric and temp.n_from:
+                        N = temp.n_from.getN(row)  # pyright: ignore
+                        assert N is not None
+                        assert N > 0
+                    else:
+                        N = 1
+
+                    rowN += N - 1
+                    for n in range(N + 1):
+                        if n == 0 and temp.numeric:
+                            continue
+
+                        print(f"{i}/{tableN} - {row_i}/{rowN}", end="\r")
+                        substitution = self._resolve_substitution_cls()(
+                            temp,
+                            row,
+                            format=self.format,
+                            n=n,
+                            **self.kwargs,
+                        )
+                        new_doc = substitution.render()
+                        extension = ".docx"
+
+                        if self.pdf:
+                            new_doc = to_pdf(new_doc)
+                            extension = ".pdf"
+
+                        out_path = path_from_data(
+                            data=row,
+                            fn_schema=self._resolve_naming_schema(temp),
+                            parent_directory=output_directory,
+                            extension=extension,
+                        )
+
+                        if temp.numeric:
+                            out_path = out_path.with_stem(out_path.stem + f"_{n}")
+
+                        write(new_doc, out_path)
+
+                        row_i += 1
+                        if not temp.numeric:
+                            break
+            if self.zip:
+                return zip_dir(output_directory)
+        finally:
+            if temp_directory is not None:
+                temp_directory.cleanup()
 
 
 def SubFromTable(
@@ -19,71 +125,16 @@ def SubFromTable(
     pdf: bool = True,
     zip: bool = False,
     **kwargs,
-) -> None:
-    if isinstance(table, pd.DataFrame):
-        tableN = table.shape[0]
+):
+    from .substitution import Substitution
 
-        # TODO put in check function
-        table.columns = table.columns.str.strip()
-
-    assert isinstance(table, pd.DataFrame)
-    assert tableN > 0
-
-    input_temp = temp
-    if not isinstance(temp, list):
-        input_temp = [temp]
-
-    temp_directory = TemporaryDirectory() if parent_directory is None else None
-    output_directory = Path(temp_directory.name) if temp_directory else parent_directory
-
-    try:
-        for i, row in table.iterrows():
-            rowN = len(input_temp)
-            row_i = 0
-            for temp in input_temp:
-                if temp.numeric and temp.n_from:
-                    N = temp.n_from.getN(row)  # pyright: ignore
-                    assert N is not None
-                    assert N > 0
-                else:
-                    N = 1
-
-                rowN += N - 1
-                for n in range(N + 1):
-                    if n == 0 and temp.numeric:
-                        continue
-
-                    print(f"{i}/{tableN} - {row_i}/{rowN}", end="\r")
-                    new_doc = Substitute(temp=temp, data=row, n=n, format=format, **kwargs)
-                    extension = ".docx"
-
-                    if pdf:
-                        new_doc = to_pdf(new_doc)
-                        extension = ".pdf"
-
-                    match naming_schema:
-                        case x if isinstance(naming_schema, str):
-                            fn_schema = x
-                        case x if callable(naming_schema):
-                            fn_schema = x(temp)
-
-                    out_path = path_from_data(
-                        data=row,
-                        fn_schema=fn_schema,
-                        parent_directory=output_directory,
-                        extension=extension,
-                    )
-
-                    if temp.numeric:
-                        out_path = out_path.with_stem(out_path.stem + f"_{n}")
-
-                    write(new_doc, out_path)
-
-                    row_i += 1
-                    if not temp.numeric:
-                        break
-        if zip:
-            return zip_dir(output_directory)
-    finally:
-        if temp_directory is not None:
-            temp_directory.cleanup()
+    return Substitution.from_table(
+        temp=temp,
+        table=table,
+        naming_schema=naming_schema,
+        format=format,
+        parent_directory=parent_directory,
+        pdf=pdf,
+        zip=zip,
+        **kwargs,
+    ).render()

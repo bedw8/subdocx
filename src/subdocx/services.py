@@ -2,15 +2,14 @@ from io import BytesIO
 
 import pandas as pd
 
-from .batch import SubFromTable
 from .errors import MissingFieldInData
-from .substitution import Substitute
+from .substitution import Substitution
 from .template import Template
 
 
 def substitute(template: Template, data: dict[str, str]):
     try:
-        new = Substitute(template, data)
+        new = Substitution(template, data).render()
     except KeyError as e:
         raise MissingFieldInData(e.args[0])
     # docx
@@ -31,10 +30,10 @@ def generate_bulk_archive(
         name_str = naming_schema
         naming_schema = lambda temp: name_str.replace("{temp.name}", temp.name)
 
-    zipStream = SubFromTable(
+    zipStream = Substitution.from_table(
         temp=templates,
         table=data,
         naming_schema=naming_schema,
         zip=True,
-    )
+    ).render()
     return zipStream
