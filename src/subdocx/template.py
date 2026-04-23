@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import pandas as pd
 
 from .utils import normalize as normalize_document
-from .config import SubConfig, formatType
+from .substitution_options import SubstitutionOptions, formatType
 
 from docx.document import Document
 
@@ -63,7 +63,7 @@ class Template(Document):
         self.numeric = numeric
         self.n_from = n_from
 
-        self.config = SubConfig()
+        self.config = SubstitutionOptions()
         self.config._load_kwargs(*kwargs)
 
         self._loaded_templates.append(self)

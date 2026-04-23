@@ -4,7 +4,7 @@ from typing import Callable
 
 import pandas as pd
 
-from .config import formatType
+from .substitution_options import formatType
 from .export import path_from_data, to_pdf, write, zip_dir
 from .template import Template
 

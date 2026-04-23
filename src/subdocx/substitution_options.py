@@ -5,11 +5,13 @@ formatType = dict[str, Callable[[Any], Any]]
 
 
 # @dataclass
-class SubConfig(BaseModel):
+class SubstitutionOptions(BaseModel):
     format: formatType = {}
     exclude: list[str] = []
+    # Currently unused; kept for future n-specific exclusion support.
     exclude_n: list[str] = []
     only: list[str] = []
+    # Currently unused; kept for future n-specific inclusion support.
     only_n: list[str] = []
 
     def _load_kwargs(self, **kwargs):

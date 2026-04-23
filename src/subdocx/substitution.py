@@ -3,7 +3,7 @@ import re
 
 import pandas as pd
 
-from .config import SubConfig, formatType
+from .substitution_options import SubstitutionOptions, formatType
 from .format import functions
 from .template import Template
 from .utils import Document, Run, iter_runs
@@ -33,13 +33,13 @@ class Substitution:
         data: dict | pd.Series,
         n: int = 0,
         format: formatType = {},
-        kwargs_fallback: SubConfig | None = None,
+        kwargs_fallback: SubstitutionOptions | None = None,
         **kwargs,
     ) -> None:
         """
         substitute the run's variable by the variable's value
         """
-        config = SubConfig()
+        config = SubstitutionOptions()
         config._load_kwargs(**{"format": format, **kwargs})
 
         if isinstance(data, pd.Series):
