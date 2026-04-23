@@ -1,15 +1,10 @@
-from io import BytesIO
 from typing import Callable
-from typing_extensions import Doc
 from .utils import Document, iter_runs, Run
 from .template import Template  # , NHandler
-from .io import path_from_data, to_pdf, write, zip_dir
 from .config import SubConfig, formatType
 import pandas as pd
 import re
-from pathlib import Path
 from .format import functions
-from tempfile import TemporaryDirectory 
 
 #### IDEA
 # class Substitute
@@ -125,90 +120,3 @@ def Substitute(
             )
 
     return new_document
-
-
-def SubFromTable(
-    temp: Template | list[Template],
-    # table: list[dict] | pd.DataFrame,
-    table: pd.DataFrame,
-    naming_schema: str | Callable,
-    format: formatType = {},
-    parent_directory: Path | None = None,
-    pdf: bool = True,
-    zip: bool = False,
-    **kwargs,
-) -> None:
-    if isinstance(table, pd.DataFrame):
-        tableN = table.shape[0]
-
-        # TODO put in check function
-        table.columns = table.columns.str.strip()
-
-
-    assert isinstance(table, pd.DataFrame)
-    assert tableN > 0
-
-    # elif isinstance(table, list):
-    #     tableN = len(table)
-    #     table = enumerate(table)
-
-    input_temp = temp
-    if not isinstance(temp, list):
-        input_temp = [temp]
-
-    for i, row in table.iterrows():
-        rowN = len(input_temp)
-        row_i = 0
-        for temp in input_temp:
-            if temp.numeric and temp.n_from:
-                N = temp.n_from.getN(row)  # pyright: ignore
-                assert N is not None
-                assert N > 0
-            else:
-                N = 1
-
-            rowN += N - 1
-            for n in range(N + 1):
-                # skip to n=1 to numeric
-                if n == 0 and temp.numeric:
-                    continue
-
-                print(f"{i}/{tableN} - {row_i}/{rowN}", end="\r")
-                new_doc = Substitute(temp=temp, data=row, n=n, format=format, **kwargs)
-                extension = '.docx'
-                
-                if pdf:
-                    new_doc =  to_pdf(new_doc)
-                    extension = '.pdf'
-
-                # handle path creation
-                match naming_schema:
-                    case x if isinstance(naming_schema, str):
-                        fn_schema = x
-                    case x if callable(naming_schema):
-                        fn_schema = x(temp)
-                
-                if not parent_directory:
-                    with TemporaryDirectory() as td:
-                        parent_directory = td
-
-                out_path = path_from_data(
-                    data=row, 
-                    fn_schema=fn_schema, 
-                    parent_directory=parent_directory,
-                    extension=extension,
-                )
-
-                if temp.numeric:
-                    out_path = out_path.with_stem(out_path.stem + f"_{n}")
-
-
-                write(new_doc, out_path)
-
-                row_i += 1
-                # only n=0 for non-numeric
-                if not temp.numeric:
-                    break
-    if zip: 
-        return zip_dir(parent_directory)
-

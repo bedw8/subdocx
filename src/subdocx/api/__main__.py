@@ -1,17 +1,7 @@
 from .main import app as api
 import warnings
-import sys  # pyright: ignore
-from typing import Annotated
-from pydantic import Field, PlainSerializer
-from pydantic_settings import BaseSettings
-from pydantic.networks import IPv4Address
 
-from box import Box
-
-
-class Settings(BaseSettings, cli_parse_args=True, cli_prog_name="subdocx"):
-    host: Annotated[IPv4Address, Field(), PlainSerializer(lambda x: str(x))] = "0.0.0.0"
-    port: int = 8000
+from subdocx.settings import APISettings
 
 
 try:
@@ -27,10 +17,8 @@ def cli():
         warnings.warn("Install uvicorn to run the server directly.")
         exit()
 
-    # args = Box(Settings().model_dump())
-    args = Box(Settings().model_dump())
-
-    uvicorn.run(api, host=args.host, port=args.port)
+    args = APISettings()
+    uvicorn.run(api, host=str(args.host), port=args.port)
 
 
 if __name__ == "__main__":

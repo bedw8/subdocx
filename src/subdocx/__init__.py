@@ -1,3 +1,4 @@
-from .substitution import Substitute, SubFromTable
+from .substitution import Substitute
 from .template import Template
-import subdocx.api as api
+
+__all__ = ["Substitute", "Template"]
