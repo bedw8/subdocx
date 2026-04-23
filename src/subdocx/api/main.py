@@ -2,7 +2,7 @@ from typing import Annotated
 from fastapi import FastAPI, status, File, UploadFile, Form, Response, Depends
 from subdocx.errors import MissingFieldInData
 from subdocx.export import to_pdf
-from subdocx.services import generate_bulk_archive, substitute
+from subdocx.services import render_batch_archive, render_docx_buffer
 from subdocx.template import Template, NHandler
 import pandas as pd
 from fastapi.exceptions import HTTPException
@@ -33,7 +33,7 @@ async def generate_document(
     template = Template(BytesIO(await template.read()))
 
     try:
-        docx_buffer = substitute(template, data.data)
+        docx_buffer = render_docx_buffer(template, data.data)
     except MissingFieldInData as e:
         raise HTTPException(detail=str(e), status=status.HTTP_406_NOT_ACCEPTABLE)
 
@@ -77,7 +77,7 @@ async def genbulk(
     ]
 
     data = pd.read_excel(data.file)
-    zipStream = generate_bulk_archive(
+    zipStream = render_batch_archive(
         temps,
         data,
         naming_schema,

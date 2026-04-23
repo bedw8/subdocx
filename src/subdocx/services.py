@@ -8,7 +8,7 @@ from .substitution import Substitution
 from .template import Template
 
 
-def substitute(template: Template, data: dict[str, str]):
+def render_docx_buffer(template: Template, data: dict[str, str]):
     try:
         new = Substitution(template, data).render()
     except KeyError as e:
@@ -21,7 +21,7 @@ def substitute(template: Template, data: dict[str, str]):
     return buffer
 
 
-def generate_bulk_archive(
+def render_batch_archive(
     templates: list[Template],
     data: pd.DataFrame,
     naming_schema: str,
