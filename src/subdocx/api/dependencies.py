@@ -6,10 +6,10 @@ from pydantic import TypeAdapter
 from .schemas import GenData, TemplateData
 
 
-def parse_data(t: type, data: str):
+def parse_json_str(t: type, json: str):
     try:
         ta = TypeAdapter(t)
-        return ta.validate_json(data)
+        return ta.validate_json(json)
     except Exception as e:
         raise HTTPException(
             detail=jsonable_encoder(e),
@@ -17,9 +17,3 @@ def parse_data(t: type, data: str):
         )
 
 
-def parse_gendata(data: str = Form(...)):
-    return parse_data(GenData, data)
-
-
-def parse_template_data(tdata: str = Form(...)):
-    return parse_data(list[TemplateData], tdata)

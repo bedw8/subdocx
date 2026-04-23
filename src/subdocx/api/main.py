@@ -9,12 +9,16 @@ from fastapi.exceptions import HTTPException
 from io import BytesIO
 import logging
 
-from .dependencies import parse_gendata, parse_template_data
+from .dependencies import parse_json_str
 from .schemas import GenData, TemplateData
 
 app = FastAPI()
 
 logger = logging.getLogger(__name__)
+
+
+def parse_gendata(data: str = Form(...)):
+    return parse_json_str(GenData, data)
 
 
 @app.post(
@@ -43,6 +47,9 @@ async def generate_document(
 
     return Response(content=content, media_type=mime)
 
+
+def parse_template_data(tdata: str = Form(...)):
+    return parse_json_str(list[TemplateData], tdata)
 
 @app.post("/genbulk", response_class=Response)
 async def genbulk(
