@@ -3,6 +3,7 @@ import re
 
 import pandas as pd
 
+from .errors import InvalidSubstitutionOptions
 from .substitution_options import SubstitutionOptions, formatType
 from .format import functions
 from .template import Template
@@ -52,7 +53,9 @@ class Substitution:
         only = _get("only")
 
         if len(exclude) > 0 and len(only) > 0:
-            raise Exception("can not use `vars_exclusion` and `vars_only` at the same time")
+            raise InvalidSubstitutionOptions(
+                "Cannot use `exclude` and `only` at the same time."
+            )
 
         text = run.text
         matches = re.finditer(r"{(([\w\s\d\(\)°\.]+);?(\w*))}", text)

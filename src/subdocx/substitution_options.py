@@ -1,6 +1,8 @@
 from pydantic import BaseModel
 from typing import Self, Callable, Any
 
+from .errors import UnknownSubstitutionOption
+
 formatType = dict[str, Callable[[Any], Any]]
 
 
@@ -28,7 +30,7 @@ class SubstitutionOptions(BaseModel):
         if key in self.__dict__:
             return self.__dict__[key]
         else:
-            raise Exception(f"attribute '{key}' does not exist")
+            raise UnknownSubstitutionOption(key)
 
     def get(self: Self, key: str, fallback: Self | None):
         if fallback is None:

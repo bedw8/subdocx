@@ -4,6 +4,7 @@ from typing import Callable, Any
 from dataclasses import dataclass
 import pandas as pd
 
+from .errors import InvalidRepetitionConfiguration, InvalidRepetitionData
 from .utils import normalize as normalize_document
 from .substitution_options import SubstitutionOptions, formatType
 
@@ -25,12 +26,17 @@ class NHandler:
     def getN(self, data) -> int:
         notnone = [(k, v) for k, v in self.__dict__.items() if v is not None]
         if len(notnone) == 0:
-            raise Exception("no method specified") from None
+            raise InvalidRepetitionConfiguration(
+                "NHandler requires one of: pattern, column, or function."
+            ) from None
         key, val = notnone[0]
 
         match key:
             case "pattern":
-                assert isinstance(data, pd.Series)
+                if not isinstance(data, pd.Series):
+                    raise InvalidRepetitionData(
+                        "NHandler pattern mode requires a pandas Series row."
+                    )
                 res = data.filter(regex=val).where(lambda x: x > 0).dropna().size
             case "column":
                 res = int(data[val])
