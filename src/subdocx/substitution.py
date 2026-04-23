@@ -118,9 +118,8 @@ class Substitution:
 
         return new_document
 
-    @classmethod
+    @staticmethod
     def from_table(
-        cls,
         temp: Template | list[Template],
         table: pd.DataFrame,
         naming_schema: str | Callable,
@@ -140,16 +139,5 @@ class Substitution:
             parent_directory=parent_directory,
             pdf=pdf,
             zip=zip,
-            substitution_cls=cls,
             **kwargs,
         )
-
-
-def Substitute(
-    temp: Template,
-    data: dict[str, str] | pd.Series,
-    format: formatType = {},
-    n: int = 0,
-    **kwargs,
-) -> Document:
-    return Substitution(temp, data, format=format, n=n, **kwargs).render()

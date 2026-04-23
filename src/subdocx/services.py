@@ -2,6 +2,7 @@ from io import BytesIO
 
 import pandas as pd
 
+from .batch import BatchSubstitution
 from .errors import MissingFieldInData
 from .substitution import Substitution
 from .template import Template
@@ -30,7 +31,7 @@ def generate_bulk_archive(
         name_str = naming_schema
         naming_schema = lambda temp: name_str.replace("{temp.name}", temp.name)
 
-    zipStream = Substitution.from_table(
+    zipStream = BatchSubstitution(
         temp=templates,
         table=data,
         naming_schema=naming_schema,

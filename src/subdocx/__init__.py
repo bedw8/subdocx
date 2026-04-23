@@ -1,5 +1,5 @@
 from .batch import BatchSubstitution
-from .substitution import Substitute, Substitution
+from .substitution import Substitution
 from .template import Template
 
-__all__ = ["BatchSubstitution", "Substitute", "Substitution", "Template"]
+__all__ = ["BatchSubstitution", "Substitution", "Template"]

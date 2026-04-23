@@ -19,7 +19,6 @@ class BatchSubstitution:
         parent_directory: Path | None = None,
         pdf: bool = True,
         zip: bool = False,
-        substitution_cls=None,
         **kwargs,
     ):
         self.templates = temp if isinstance(temp, list) else [temp]
@@ -29,16 +28,7 @@ class BatchSubstitution:
         self.parent_directory = parent_directory
         self.pdf = pdf
         self.zip = zip
-        self.substitution_cls = substitution_cls
         self.kwargs = kwargs
-
-    def _resolve_substitution_cls(self):
-        if self.substitution_cls is not None:
-            return self.substitution_cls
-
-        from .substitution import Substitution
-
-        return Substitution
 
     def _resolve_table(self) -> pd.DataFrame:
         table = self.table
@@ -57,6 +47,8 @@ class BatchSubstitution:
                 return x(template)
 
     def render(self):
+        from .substitution import Substitution
+
         table = self._resolve_table()
         tableN = table.shape[0]
         temp_directory = TemporaryDirectory() if self.parent_directory is None else None
@@ -80,7 +72,7 @@ class BatchSubstitution:
                             continue
 
                         print(f"{i}/{tableN} - {row_i}/{rowN}", end="\r")
-                        substitution = self._resolve_substitution_cls()(
+                        substitution = Substitution(
                             temp,
                             row,
                             format=self.format,
@@ -114,27 +106,3 @@ class BatchSubstitution:
         finally:
             if temp_directory is not None:
                 temp_directory.cleanup()
-
-
-def SubFromTable(
-    temp: Template | list[Template],
-    table: pd.DataFrame,
-    naming_schema: str | Callable,
-    format: formatType = {},
-    parent_directory: Path | None = None,
-    pdf: bool = True,
-    zip: bool = False,
-    **kwargs,
-):
-    from .substitution import Substitution
-
-    return Substitution.from_table(
-        temp=temp,
-        table=table,
-        naming_schema=naming_schema,
-        format=format,
-        parent_directory=parent_directory,
-        pdf=pdf,
-        zip=zip,
-        **kwargs,
-    ).render()
