@@ -1,12 +1,24 @@
+from io import BytesIO
 from typing import Callable
-from .utils import iter_runs, Run
+from typing_extensions import Doc
+from .utils import Document, iter_runs, Run
 from .template import Template  # , NHandler
-from .io import path_from_data
+from .io import path_from_data, to_pdf, write, zip_dir
 from .config import SubConfig, formatType
 import pandas as pd
 import re
 from pathlib import Path
 from .format import functions
+from tempfile import TemporaryDirectory 
+
+#### IDEA
+# class Substitute
+# 
+# single file 
+# __init__ -> Substitute()
+# 
+# bulk 
+# @staticmethod from_table -> Substitute.from_table()
 
 
 def _substitute_run(
@@ -47,7 +59,6 @@ def _substitute_run(
         # value_key: 'variable'
         # specific_key: 'format1'
         full_key, value_key, specific_key = m.groups()
-        print(full_key)
         if value_key in exclude:
             continue
         if value_key not in data:
@@ -74,7 +85,6 @@ def _substitute_run(
 
         # new value
         new_val = str(ffunc(data[value_key]))
-        # print(full_key,'--',new_val,full_key in format)
 
         text = text.replace(ph, new_val)
 
@@ -88,7 +98,7 @@ def Substitute(
     format: formatType = {},
     n: int = 0,
     **kwargs,
-) -> Template:
+) -> Document:
     """substitute all variables in the document"""
 
     temp_id = Template._loaded_templates.index(temp)
@@ -102,7 +112,7 @@ def Substitute(
     # use: substitution input parameter -> self
     #      template default values as fallback -> other
     # returns self.x unless self.x is None, when it returns other.x
-
+    
     for r in iter_runs(new_document):
         if "{" in r.text:
             _substitute_run(
@@ -122,32 +132,38 @@ def SubFromTable(
     # table: list[dict] | pd.DataFrame,
     table: pd.DataFrame,
     naming_schema: str | Callable,
-    parent_directory=Path(),
+    format: formatType = {},
+    parent_directory: Path | None = None,
+    pdf: bool = True,
+    zip: bool = False,
     **kwargs,
 ) -> None:
     if isinstance(table, pd.DataFrame):
-        tableN = table.shape
+        tableN = table.shape[0]
 
         # TODO put in check function
         table.columns = table.columns.str.strip()
 
-        table = table.iterrows()
-    elif isinstance(table, list):
-        tableN = len(table)
-        table = enumerate(table)
+
+    assert isinstance(table, pd.DataFrame)
+    assert tableN > 0
+
+    # elif isinstance(table, list):
+    #     tableN = len(table)
+    #     table = enumerate(table)
 
     input_temp = temp
     if not isinstance(temp, list):
-        # a :=
-        # print(a)
         input_temp = [temp]
 
-    for i, row in table:
+    for i, row in table.iterrows():
         rowN = len(input_temp)
         row_i = 0
         for temp in input_temp:
-            if temp.numeric:
+            if temp.numeric and temp.n_from:
                 N = temp.n_from.getN(row)  # pyright: ignore
+                assert N is not None
+                assert N > 0
             else:
                 N = 1
 
@@ -158,7 +174,12 @@ def SubFromTable(
                     continue
 
                 print(f"{i}/{tableN} - {row_i}/{rowN}", end="\r")
-                new_doc = Substitute(temp=temp, data=row, n=n, **kwargs)
+                new_doc = Substitute(temp=temp, data=row, n=n, format=format, **kwargs)
+                extension = '.docx'
+                
+                if pdf:
+                    new_doc =  to_pdf(new_doc)
+                    extension = '.pdf'
 
                 # handle path creation
                 match naming_schema:
@@ -166,19 +187,28 @@ def SubFromTable(
                         fn_schema = x
                     case x if callable(naming_schema):
                         fn_schema = x(temp)
+                
+                if not parent_directory:
+                    with TemporaryDirectory() as td:
+                        parent_directory = td
 
                 out_path = path_from_data(
-                    data=row, fn_schema=fn_schema, parent_directory=parent_directory
+                    data=row, 
+                    fn_schema=fn_schema, 
+                    parent_directory=parent_directory,
+                    extension=extension,
                 )
 
                 if temp.numeric:
                     out_path = out_path.with_stem(out_path.stem + f"_{n}")
 
-                print(f"{i}/{tableN} - {row_i}/{rowN}", end="\r")
 
-                new_doc.save(out_path)
+                write(new_doc, out_path)
 
                 row_i += 1
                 # only n=0 for non-numeric
                 if not temp.numeric:
                     break
+    if zip: 
+        return zip_dir(parent_directory)
+

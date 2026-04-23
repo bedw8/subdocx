@@ -1,9 +1,8 @@
 import docx
-from typing import TypeAlias
 
 # Run = NewType('Run',docx.oxml.text.run.CT_R)
 Run = docx.oxml.text.run.CT_R
-Document: TypeAlias = docx.document.Document
+type Document = docx.document.Document
 
 
 def get_next(r: Run) -> Run | None:  # pyright: ignore
