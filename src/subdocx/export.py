@@ -1,15 +1,12 @@
+from io import BytesIO
 from pathlib import Path
 import re
-from .template import Document
-from io import BytesIO
-import requests
-import os
-from docx.document import Document
 import zipfile
 
-## PDF Conversion
-SERVER = os.getenv("UNISERVER_URL")
-PORT = os.getenv("UNISERVER_PORT")
+import requests
+from docx.document import Document
+
+from .settings import PDFSettings
 
 
 def path_from_data(data, fn_schema, extension=".docx", parent_directory=Path()):
@@ -24,19 +21,29 @@ def path_from_data(data, fn_schema, extension=".docx", parent_directory=Path()):
     filename = re.sub("\\s+", "_", filename)
 
     f_path = parent_directory / Path(filename)
-    if (f_path.parts) != 1:
+    if f_path.parts != 1:
         f_path.parent.mkdir(parents=True, exist_ok=True)
 
     return f_path.with_suffix(extension)
 
 
-def to_pdf(docx: Document) -> bytes:
+def to_docx_buffer(docx: Document | BytesIO) -> BytesIO:
+    if isinstance(docx, BytesIO):
+        docx.seek(0)
+        return docx
+
     docx_buffer = BytesIO()
     docx.save(docx_buffer)
     docx_buffer.seek(0)
+    return docx_buffer
+
+
+def to_pdf(docx: Document | BytesIO) -> bytes:
+    settings = PDFSettings()
+    docx_buffer = to_docx_buffer(docx)
 
     pdf_r = requests.post(
-        f"http://{SERVER}:{PORT}/request",
+        settings.request_url,
         files={"file": docx_buffer},
         data={"convert-to": "pdf"},
     )
@@ -48,10 +55,11 @@ def write(input: Document | bytes, path: Path):
     match input:
         case Document():
             input.save(path)
-        case bytes():  # pdf bytes
+        case bytes():
             pdf_buffer = Path(path).open("wb")
             pdf_buffer.write(input)
             pdf_buffer.close()
+
 
 def zip_dir(directory):
     if isinstance(directory, str):
@@ -60,7 +68,7 @@ def zip_dir(directory):
     zipstream = BytesIO()
 
     with zipfile.ZipFile(zipstream, mode="w") as archive:
-        exts = ['pdf','docx']
+        exts = ["pdf", "docx"]
         files = []
         for ext in exts:
             files += list(directory.rglob(f"*.{ext}"))
