@@ -969,7 +969,9 @@ dependencies = [
     { name = "openpyxl" },
     { name = "pandas" },
     { name = "pandas-stubs" },
+    { name = "pydantic-settings" },
     { name = "python-docx" },
+    { name = "requests" },
 ]
 
 [package.optional-dependencies]
@@ -992,9 +994,11 @@ requires-dist = [
     { name = "pandas", specifier = ">=2.3.3" },
     { name = "pandas-stubs", specifier = ">=3.0.0.260204" },
     { name = "pydantic", marker = "extra == 'cli'", specifier = ">=2.12.5" },
+    { name = "pydantic-settings", specifier = ">=2.13.1" },
     { name = "pydantic-settings", marker = "extra == 'cli'", specifier = ">=2.12.0" },
     { name = "python-box", marker = "extra == 'cli'", specifier = ">=7.3.2" },
     { name = "python-docx", specifier = ">=1.2.0" },
+    { name = "requests", specifier = ">=2.32.5" },
     { name = "requests", marker = "extra == 'pdf'", specifier = ">=2.32.5" },
     { name = "uvicorn", marker = "extra == 'cli'", specifier = ">=0.38.0" },
 ]
