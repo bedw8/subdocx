@@ -67,6 +67,13 @@ class BatchSubstitution:
             rowN = len(self.templates)
             row_i = 0
             for temp in self.templates:
+                if temp.conditional is None:
+                    pass
+                elif temp.conditional.valid(row):
+                    pass
+                else:
+                    continue
+
                 if temp.numeric and temp.n_from:
                     N = temp.n_from.getN(row)  # pyright: ignore
                     if N is None or N <= 0:

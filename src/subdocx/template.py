@@ -9,6 +9,7 @@ from .utils import normalize as normalize_document
 from .substitution_options import SubstitutionOptions, formatType
 
 from docx.document import Document
+import operator
 
 
 @dataclass
@@ -45,6 +46,41 @@ class NHandler:
 
         return res
 
+    #IDEA: turn N to rep. 
+    # getN -> get_reps (list of values)
+
+@dataclass
+class ConditionHandler:
+    """
+    
+    """
+
+    column: str | None = None
+    value: Any | None = None
+    op: str = 'eq'
+
+    _operations = {
+        'eq':operator.eq,
+        'ne':operator.ne,
+        'le':operator.le,
+        'ge':operator.ge,
+        'gt':operator.gt,
+        'lt':operator.lt,
+        'in':operator.contains,
+        }
+
+    def _get_op(self):
+        return self._operations[self.op]
+ 
+    def valid(self, data_row) -> bool:
+        op = self._get_op()
+
+        if self.op == 'in':
+            return op(self.value,data_row[self.column])
+
+        return op(data_row[self.column],self.value)
+        
+
 
 class Template(Document):
     _loaded_templates: list["Template"] = []
@@ -57,6 +93,7 @@ class Template(Document):
         name: str = "",
         numeric: bool = False,
         n_from: NHandler | None = None,
+        conditional: ConditionHandler | None = None,
         **kwargs,
     ):
         if isinstance(input, Document):
@@ -68,6 +105,7 @@ class Template(Document):
         self.name = name
         self.numeric = numeric
         self.n_from = n_from
+        self.conditional = conditional
 
         self.config = SubstitutionOptions()
         self.config._load_kwargs(*kwargs)
