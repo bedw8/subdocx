@@ -3,7 +3,7 @@ from fastapi import FastAPI, status, File, UploadFile, Form, Response, Depends
 from subdocx.errors import MissingFieldInData
 from subdocx.export import to_pdf
 from subdocx.services import render_batch_archive, render_docx_buffer
-from subdocx.template import Template, NHandler
+from subdocx.template import Template, NHandler, ConditionHandler
 import pandas as pd
 from fastapi.exceptions import HTTPException
 from io import BytesIO
@@ -59,21 +59,32 @@ async def genbulk(
     naming_schema: Annotated[str, Form(...)],
 ):
 
-    tnames = {}
-    tnum = {}
+    # tnames = {}
+    # tnum = {}
+    # tcond = {}
+    #
+    # for td in tdata:
+    #     tnames[td.filename] = td.name
+    #     tnum[td.filename] = td.numeric_on
+    #     tcond[td.filename] = td.condition
 
+    data_dict = {}
     for td in tdata:
-        tnames[td.filename] = td.name
-        tnum[td.filename] = td.numeric_on
-
+        data_dict[td.filename] = [td.name, td.numeric_on, td.condition]
+    
+    for t in templates:
+        data_dict[t.filename].append(t.file)
+        data_dict[t.filename].append(t.filename)
+     
     temps = [
         Template(
-            t.file,
-            name=tnames[t.filename],
-            numeric=True if tnum[t.filename] else False,
-            n_from=NHandler(pattern=tnum[t.filename].replace("1", "\\d")) if tnum[t.filename] else None,
+            file,
+            name=name,
+            numeric=True if num else False,
+            n_from=NHandler(pattern=num.replace("1", "\\d")) if num else None,
+            conditional=None if cond is None else ConditionHandler(**cond.model_dump()),
         )
-        for t in templates
+        for name, num, cond, file, fname in [p[1] for p in  data_dict.items()]
     ]
 
     data = pd.read_excel(data.file)
