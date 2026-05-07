@@ -1,214 +1,146 @@
-from io import BytesIO
-from typing import Callable
-from typing_extensions import Doc
-from .utils import Document, iter_runs, Run
-from .template import Template  # , NHandler
-from .io import path_from_data, to_pdf, write, zip_dir
-from .config import SubConfig, formatType
-import pandas as pd
+from typing import TYPE_CHECKING, Callable
 import re
-from pathlib import Path
+
+import pandas as pd
+
+from .errors import InvalidSubstitutionOptions
+from .substitution_options import SubstitutionOptions, formatType
 from .format import functions
-from tempfile import TemporaryDirectory 
+from .template import Template
+from .utils import Document, Run, iter_runs
 
-#### IDEA
-# class Substitute
-# 
-# single file 
-# __init__ -> Substitute()
-# 
-# bulk 
-# @staticmethod from_table -> Substitute.from_table()
+if TYPE_CHECKING:
+    from .batch import BatchSubstitution
 
 
-def _substitute_run(
-    run: Run,
-    data: dict | pd.Series,
-    n: int = 0,
-    format: formatType = {},
-    kwargs_fallback: SubConfig | None = None,
-    **kwargs,
-) -> None:
-    """
-    substitute the run's variable by the variable's value
-    """
-    config = SubConfig()
-    config._load_kwargs(**{"format": format, **kwargs})
+class Substitution:
+    def __init__(
+        self,
+        template: Template,
+        data: dict[str, str] | pd.Series,
+        format: formatType = {},
+        n: int = 0,
+        **kwargs,
+    ):
+        self.template = template
+        self.data = data
+        self.format = format
+        self.n = n
+        self.kwargs = kwargs
 
-    if isinstance(data, pd.Series):
-        data = data.to_dict()
+    @staticmethod
+    def _substitute_run(
+        run: Run,
+        data: dict | pd.Series,
+        n: int = 0,
+        format: formatType = {},
+        kwargs_fallback: SubstitutionOptions | None = None,
+        **kwargs,
+    ) -> None:
+        """
+        substitute the run's variable by the variable's value
+        """
+        config = SubstitutionOptions()
+        config._load_kwargs(**{"format": format, **kwargs})
 
-    def _get(key):
-        return config.get(key, kwargs_fallback)
+        if isinstance(data, pd.Series):
+            data = data.to_dict()
 
-    exclude = _get("exclude")
-    only = _get("only")
+        def _get(key):
+            return config.get(key, kwargs_fallback)
 
-    if len(exclude) > 0 and len(only) > 0:
-        raise Exception("can not use `vars_exclusion` and `vars_only` at the same time")
+        exclude = _get("exclude")
+        only = _get("only")
 
-    text = run.text
-    matches = re.finditer(r"{(([\w\s\d\(\)°\.]+);?(\w*))}", text)
-
-    for m in matches:
-        # ph: '{variable;format1}'
-        ph = m.group()
-        # variable keys syntax
-        #
-        # full_key: 'variable;format1'
-        # value_key: 'variable'
-        # specific_key: 'format1'
-        full_key, value_key, specific_key = m.groups()
-        if value_key in exclude:
-            continue
-        if value_key not in data:
-            continue
-        if len(only) > 1 and value_key not in only:
-            continue
-
-        # format
-        #
-        # not using specific_key at the moment. full_key is enough
-        ffunc: Callable
-        if full_key in format:
-            ffunc = format[full_key]
-        elif specific_key in functions:
-            ffunc = functions[specific_key]
-        else:
-            ffunc = lambda x: x
-
-        # value
-        #
-        # get value for n-th numeric variable
-        if n > 0:
-            value_key = re.sub("\\b1(?!°)\\b", str(n), value_key)
-
-        # new value
-        new_val = str(ffunc(data[value_key]))
-
-        text = text.replace(ph, new_val)
-
-    # replacing value
-    run.text = text
-
-
-def Substitute(
-    temp: Template,
-    data: dict[str, str] | pd.Series,
-    format: formatType = {},
-    n: int = 0,
-    **kwargs,
-) -> Document:
-    """substitute all variables in the document"""
-
-    temp_id = Template._loaded_templates.index(temp)
-    norm_temp = Template._normalized_templates[temp_id]
-    new_document = norm_temp.copy()
-
-    # TODO make a class SubstitutionConfig ?
-    # it should not modify Temp attributes, since this options should be temporary
-    #
-    # method to get value of parameter from 'self' and 'other' class instances
-    # use: substitution input parameter -> self
-    #      template default values as fallback -> other
-    # returns self.x unless self.x is None, when it returns other.x
-    
-    for r in iter_runs(new_document):
-        if "{" in r.text:
-            _substitute_run(
-                run=r,
-                data=data,
-                n=n,
-                format=format,
-                kwargs_fallback=temp.config,
-                **kwargs,
+        if len(exclude) > 0 and len(only) > 0:
+            raise InvalidSubstitutionOptions(
+                "Cannot use `exclude` and `only` at the same time."
             )
 
-    return new_document
+        text = run.text
+        matches = re.finditer(r"{(([\w\s\d\(\)°\.]+);?(\w*))}", text)
 
+        for m in matches:
+            # ph: '{variable;format1}'
+            ph = m.group()
+            # variable keys syntax
+            #
+            # full_key: 'variable;format1'
+            # value_key: 'variable'
+            # specific_key: 'format1'
+            full_key, value_key, specific_key = m.groups()
+            if value_key in exclude:
+                continue
+            if value_key not in data:
+                continue
+            if len(only) > 1 and value_key not in only:
+                continue
 
-def SubFromTable(
-    temp: Template | list[Template],
-    # table: list[dict] | pd.DataFrame,
-    table: pd.DataFrame,
-    naming_schema: str | Callable,
-    format: formatType = {},
-    parent_directory: Path | None = None,
-    pdf: bool = True,
-    zip: bool = False,
-    **kwargs,
-) -> None:
-    if isinstance(table, pd.DataFrame):
-        tableN = table.shape[0]
-
-        # TODO put in check function
-        table.columns = table.columns.str.strip()
-
-
-    assert isinstance(table, pd.DataFrame)
-    assert tableN > 0
-
-    # elif isinstance(table, list):
-    #     tableN = len(table)
-    #     table = enumerate(table)
-
-    input_temp = temp
-    if not isinstance(temp, list):
-        input_temp = [temp]
-
-    for i, row in table.iterrows():
-        rowN = len(input_temp)
-        row_i = 0
-        for temp in input_temp:
-            if temp.numeric and temp.n_from:
-                N = temp.n_from.getN(row)  # pyright: ignore
-                assert N is not None
-                assert N > 0
+            # format
+            #
+            # not using specific_key at the moment. full_key is enough
+            ffunc: Callable
+            if full_key in format:
+                ffunc = format[full_key]
+            elif specific_key in functions:
+                ffunc = functions[specific_key]
             else:
-                N = 1
+                ffunc = lambda x: x
 
-            rowN += N - 1
-            for n in range(N + 1):
-                # skip to n=1 to numeric
-                if n == 0 and temp.numeric:
-                    continue
+            # value
+            #
+            # get value for n-th numeric variable
+            if n > 0:
+                value_key = re.sub("\\b1(?!°)\\b", str(n), value_key)
 
-                print(f"{i}/{tableN} - {row_i}/{rowN}", end="\r")
-                new_doc = Substitute(temp=temp, data=row, n=n, format=format, **kwargs)
-                extension = '.docx'
-                
-                if pdf:
-                    new_doc =  to_pdf(new_doc)
-                    extension = '.pdf'
+            # new value
+            new_val = str(ffunc(data[value_key]))
 
-                # handle path creation
-                match naming_schema:
-                    case x if isinstance(naming_schema, str):
-                        fn_schema = x
-                    case x if callable(naming_schema):
-                        fn_schema = x(temp)
-                
-                if not parent_directory:
-                    with TemporaryDirectory() as td:
-                        parent_directory = td
+            text = text.replace(ph, new_val)
 
-                out_path = path_from_data(
-                    data=row, 
-                    fn_schema=fn_schema, 
-                    parent_directory=parent_directory,
-                    extension=extension,
+        # replacing value
+        run.text = text
+
+    def render(self) -> Document:
+        """substitute all variables in the document"""
+
+        temp_id = Template._loaded_templates.index(self.template)
+        norm_temp = Template._normalized_templates[temp_id]
+        new_document = norm_temp.copy()
+
+        for run in iter_runs(new_document):
+            if "{" in run.text:
+                self._substitute_run(
+                    run=run,
+                    data=self.data,
+                    n=self.n,
+                    format=self.format,
+                    kwargs_fallback=self.template.config,
+                    **self.kwargs,
                 )
 
-                if temp.numeric:
-                    out_path = out_path.with_stem(out_path.stem + f"_{n}")
+        return new_document
 
+    @staticmethod
+    def from_table(
+        temp: Template | list[Template],
+        table: pd.DataFrame,
+        naming_schema: str | Callable,
+        format: formatType = {},
+        parent_directory=None,
+        pdf: bool = True,
+        zip: bool = False,
+        **kwargs,
+    ) -> "BatchSubstitution":
+        from .batch import BatchSubstitution
 
-                write(new_doc, out_path)
-
-                row_i += 1
-                # only n=0 for non-numeric
-                if not temp.numeric:
-                    break
-    if zip: 
-        return zip_dir(parent_directory)
-
+        return BatchSubstitution(
+            temp=temp,
+            table=table,
+            naming_schema=naming_schema,
+            format=format,
+            parent_directory=parent_directory,
+            pdf=pdf,
+            zip=zip,
+            **kwargs,
+        )

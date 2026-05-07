@@ -1,3 +1,5 @@
-from .substitution import Substitute, SubFromTable
+from .batch import BatchSubstitution
+from .substitution import Substitution
 from .template import Template
-import subdocx.api as api
+
+__all__ = ["BatchSubstitution", "Substitution", "Template"]

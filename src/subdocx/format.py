@@ -28,13 +28,13 @@ def date2words(date):
 def date_MMMMy(x):
     if not isinstance(x, datetime):
         x = to_datetime(x)
-    return (format_date(x, "MMMM, y", locale="es_CL"),)
+    return format_date(x, "MMMM, y", locale="es_CL")
 
 
 def date_MMMM(x):
     if not isinstance(x, datetime):
         x = to_datetime()
-    return (format_date(x, "MMMM", locale="es_CL"),)
+    return format_date(x, "MMMM", locale="es_CL")
 
 
 def toInt(x):
@@ -46,6 +46,7 @@ _functions = [
     date2words,
     date_MMMM,
     date_MMMMy,
+    toInt
 ]
 
 functions = {f.__name__: f for f in _functions}

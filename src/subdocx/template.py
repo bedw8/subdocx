@@ -4,10 +4,12 @@ from typing import Callable, Any
 from dataclasses import dataclass
 import pandas as pd
 
+from .errors import InvalidRepetitionConfiguration, InvalidRepetitionData
 from .utils import normalize as normalize_document
-from .config import SubConfig, formatType
+from .substitution_options import SubstitutionOptions, formatType
 
 from docx.document import Document
+import operator
 
 
 @dataclass
@@ -25,12 +27,17 @@ class NHandler:
     def getN(self, data) -> int:
         notnone = [(k, v) for k, v in self.__dict__.items() if v is not None]
         if len(notnone) == 0:
-            raise Exception("no method specified") from None
+            raise InvalidRepetitionConfiguration(
+                "NHandler requires one of: pattern, column, or function."
+            ) from None
         key, val = notnone[0]
 
         match key:
             case "pattern":
-                assert isinstance(data, pd.Series)
+                if not isinstance(data, pd.Series):
+                    raise InvalidRepetitionData(
+                        "NHandler pattern mode requires a pandas Series row."
+                    )
                 res = data.filter(regex=val).where(lambda x: x > 0).dropna().size
             case "column":
                 res = int(data[val])
@@ -38,6 +45,41 @@ class NHandler:
                 res = val(data)
 
         return res
+
+    #IDEA: turn N to rep. 
+    # getN -> get_reps (list of values)
+
+@dataclass
+class ConditionHandler:
+    """
+    
+    """
+
+    column: str | None = None
+    value: Any | None = None
+    op: str = 'eq'
+
+    _operations = {
+        'eq':operator.eq,
+        'ne':operator.ne,
+        'le':operator.le,
+        'ge':operator.ge,
+        'gt':operator.gt,
+        'lt':operator.lt,
+        'in':operator.contains,
+        }
+
+    def _get_op(self):
+        return self._operations[self.op]
+ 
+    def valid(self, data_row) -> bool:
+        op = self._get_op()
+
+        if self.op == 'in':
+            return op(self.value,data_row[self.column])
+
+        return op(data_row[self.column],self.value)
+        
 
 
 class Template(Document):
@@ -51,6 +93,7 @@ class Template(Document):
         name: str = "",
         numeric: bool = False,
         n_from: NHandler | None = None,
+        conditional: ConditionHandler | None = None,
         **kwargs,
     ):
         if isinstance(input, Document):
@@ -62,8 +105,9 @@ class Template(Document):
         self.name = name
         self.numeric = numeric
         self.n_from = n_from
+        self.conditional = conditional
 
-        self.config = SubConfig()
+        self.config = SubstitutionOptions()
         self.config._load_kwargs(*kwargs)
 
         self._loaded_templates.append(self)

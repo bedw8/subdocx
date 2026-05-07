@@ -1,15 +1,19 @@
 from pydantic import BaseModel
 from typing import Self, Callable, Any
 
+from .errors import UnknownSubstitutionOption
+
 formatType = dict[str, Callable[[Any], Any]]
 
 
 # @dataclass
-class SubConfig(BaseModel):
+class SubstitutionOptions(BaseModel):
     format: formatType = {}
     exclude: list[str] = []
+    # Currently unused; kept for future n-specific exclusion support.
     exclude_n: list[str] = []
     only: list[str] = []
+    # Currently unused; kept for future n-specific inclusion support.
     only_n: list[str] = []
 
     def _load_kwargs(self, **kwargs):
@@ -26,7 +30,7 @@ class SubConfig(BaseModel):
         if key in self.__dict__:
             return self.__dict__[key]
         else:
-            raise Exception(f"attribute '{key}' does not exist")
+            raise UnknownSubstitutionOption(key)
 
     def get(self: Self, key: str, fallback: Self | None):
         if fallback is None:
